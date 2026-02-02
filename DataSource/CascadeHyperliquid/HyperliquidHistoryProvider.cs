@@ -12,6 +12,7 @@ using QuantConnect.Logging;
 using QuantConnect.Interfaces;
 using QuantConnect.Data.Market;
 using QuantConnect.Configuration;
+using QuantConnect.Lean.Engine.DataFeeds;
 using QuantConnect.Lean.Engine.HistoricalData;
 
 using HistoryRequest = QuantConnect.Data.HistoryRequest;
@@ -27,11 +28,12 @@ namespace QuantConnect.Lean.DataSource.CascadeHyperliquid
     /// - Tick data (trades)
     /// - CryptoFuture security type only
     /// </remarks>
-    public class HyperliquidHistoryProvider : SynchronizingHistoryProvider
+    public class HyperliquidHistoryProvider : SynchronizingHistoryProvider, IDisposable
     {
         private HyperliquidRestClient? _restClient;
         private HyperliquidSymbolMapper? _symbolMapper;
         private bool _initialized;
+        private bool _disposed;
 
         // Warning flags to avoid log spam
         private volatile bool _invalidSecurityTypeWarningFired;
@@ -151,47 +153,54 @@ namespace QuantConnect.Lean.DataSource.CascadeHyperliquid
             // It does not support historical ranges. For production use, you'd need to
             // either use websocket subscriptions or accept limited historical tick data.
 
+            JArray? trades;
             try
             {
                 var tradesTask = _restClient!.GetRecentTradesAsync(coin);
                 tradesTask.Wait();
-
-                var trades = tradesTask.Result;
-                if (trades == null || !trades.Any())
-                {
-                    yield break;
-                }
-
-                foreach (var trade in trades)
-                {
-                    var time = trade["time"]?.Value<long>() ?? 0;
-                    var price = decimal.Parse(trade["px"]?.Value<string>() ?? "0");
-                    var size = decimal.Parse(trade["sz"]?.Value<string>() ?? "0");
-                    var side = trade["side"]?.Value<string>() ?? "";
-
-                    var timeUtc = DateTimeOffset.FromUnixTimeMilliseconds(time).UtcDateTime;
-
-                    // Only return trades within requested time range
-                    if (timeUtc < request.StartTimeUtc || timeUtc >= request.EndTimeUtc)
-                    {
-                        continue;
-                    }
-
-                    yield return new Tick
-                    {
-                        Symbol = request.Symbol,
-                        Time = timeUtc,
-                        Value = price,
-                        Quantity = size,
-                        TickType = TickType.Trade,
-                        BidPrice = side == "B" ? price : 0,
-                        AskPrice = side == "A" ? price : 0
-                    };
-                }
+                trades = tradesTask.Result;
             }
             catch (Exception ex)
             {
                 Log.Error($"HyperliquidHistoryProvider: Error fetching tick history for {coin}: {ex.Message}");
+                return null;
+            }
+
+            if (trades == null || !trades.Any())
+            {
+                return Enumerable.Empty<BaseData>();
+            }
+
+            return ProcessTrades(trades, request);
+        }
+
+        private IEnumerable<BaseData> ProcessTrades(JArray trades, HistoryRequest request)
+        {
+            foreach (var trade in trades)
+            {
+                var time = trade["time"]?.Value<long>() ?? 0;
+                var price = decimal.Parse(trade["px"]?.Value<string>() ?? "0");
+                var size = decimal.Parse(trade["sz"]?.Value<string>() ?? "0");
+                var side = trade["side"]?.Value<string>() ?? "";
+
+                var timeUtc = DateTimeOffset.FromUnixTimeMilliseconds(time).UtcDateTime;
+
+                // Only return trades within requested time range
+                if (timeUtc < request.StartTimeUtc || timeUtc >= request.EndTimeUtc)
+                {
+                    continue;
+                }
+
+                yield return new Tick
+                {
+                    Symbol = request.Symbol,
+                    Time = timeUtc,
+                    Value = price,
+                    Quantity = size,
+                    TickType = TickType.Trade,
+                    BidPrice = side == "B" ? price : 0,
+                    AskPrice = side == "A" ? price : 0
+                };
             }
         }
 
@@ -211,6 +220,7 @@ namespace QuantConnect.Lean.DataSource.CascadeHyperliquid
                 return null;
             }
 
+            JArray? candles;
             try
             {
                 var startMs = new DateTimeOffset(request.StartTimeUtc).ToUnixTimeMilliseconds();
@@ -218,53 +228,59 @@ namespace QuantConnect.Lean.DataSource.CascadeHyperliquid
 
                 var candlesTask = _restClient!.GetCandleSnapshotAsync(coin, interval, startMs, endMs);
                 candlesTask.Wait();
-
-                var candles = candlesTask.Result;
-                if (candles == null || !candles.Any())
-                {
-                    yield break;
-                }
-
-                foreach (var candle in candles)
-                {
-                    // Hyperliquid candle format:
-                    // T: close timestamp (ms)
-                    // t: open timestamp (ms)
-                    // o: open price
-                    // h: high price
-                    // l: low price
-                    // c: close price
-                    // v: volume
-                    // n: number of trades
-
-                    var openTime = candle["t"]?.Value<long>() ?? 0;
-                    var closeTime = candle["T"]?.Value<long>() ?? 0;
-                    var open = decimal.Parse(candle["o"]?.Value<string>() ?? "0");
-                    var high = decimal.Parse(candle["h"]?.Value<string>() ?? "0");
-                    var low = decimal.Parse(candle["l"]?.Value<string>() ?? "0");
-                    var close = decimal.Parse(candle["c"]?.Value<string>() ?? "0");
-                    var volume = decimal.Parse(candle["v"]?.Value<string>() ?? "0");
-
-                    var time = DateTimeOffset.FromUnixTimeMilliseconds(openTime).UtcDateTime;
-                    var period = TimeSpan.FromMilliseconds(closeTime - openTime);
-
-                    yield return new TradeBar
-                    {
-                        Symbol = request.Symbol,
-                        Time = time,
-                        Open = open,
-                        High = high,
-                        Low = low,
-                        Close = close,
-                        Volume = volume,
-                        Period = period,
-                        DataType = MarketDataType.TradeBar
-                    };
-                }
+                candles = candlesTask.Result;
             }
             catch (Exception ex)
             {
                 Log.Error($"HyperliquidHistoryProvider: Error fetching candle history for {coin}: {ex.Message}");
+                return null;
+            }
+
+            if (candles == null || !candles.Any())
+            {
+                return Enumerable.Empty<BaseData>();
+            }
+
+            return ProcessCandles(candles, request);
+        }
+
+        private IEnumerable<BaseData> ProcessCandles(JArray candles, HistoryRequest request)
+        {
+            foreach (var candle in candles)
+            {
+                // Hyperliquid candle format:
+                // T: close timestamp (ms)
+                // t: open timestamp (ms)
+                // o: open price
+                // h: high price
+                // l: low price
+                // c: close price
+                // v: volume
+                // n: number of trades
+
+                var openTime = candle["t"]?.Value<long>() ?? 0;
+                var closeTime = candle["T"]?.Value<long>() ?? 0;
+                var open = decimal.Parse(candle["o"]?.Value<string>() ?? "0");
+                var high = decimal.Parse(candle["h"]?.Value<string>() ?? "0");
+                var low = decimal.Parse(candle["l"]?.Value<string>() ?? "0");
+                var close = decimal.Parse(candle["c"]?.Value<string>() ?? "0");
+                var volume = decimal.Parse(candle["v"]?.Value<string>() ?? "0");
+
+                var time = DateTimeOffset.FromUnixTimeMilliseconds(openTime).UtcDateTime;
+                var period = TimeSpan.FromMilliseconds(closeTime - openTime);
+
+                yield return new TradeBar
+                {
+                    Symbol = request.Symbol,
+                    Time = time,
+                    Open = open,
+                    High = high,
+                    Low = low,
+                    Close = close,
+                    Volume = volume,
+                    Period = period,
+                    DataType = MarketDataType.TradeBar
+                };
             }
         }
 
@@ -284,14 +300,25 @@ namespace QuantConnect.Lean.DataSource.CascadeHyperliquid
         /// <summary>
         /// Disposes resources
         /// </summary>
-        protected override void Dispose(bool disposing)
+        public void Dispose()
         {
-            if (disposing)
-            {
-                _restClient?.Dispose();
-            }
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
 
-            base.Dispose(disposing);
+        /// <summary>
+        /// Disposes resources
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    _restClient?.Dispose();
+                }
+                _disposed = true;
+            }
         }
     }
 }

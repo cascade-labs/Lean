@@ -19,6 +19,7 @@ using QuantConnect.Util;
 using QuantConnect.Logging;
 using QuantConnect.Configuration;
 using QuantConnect.Lean.DataSource.CascadeThetaData.Models.Rest;
+using QuantConnect.Lean.DataSource.CascadeThetaData.Models.Common;
 using QuantConnect.Lean.DataSource.CascadeThetaData.Models.Interfaces;
 
 namespace QuantConnect.Lean.DataSource.CascadeThetaData
