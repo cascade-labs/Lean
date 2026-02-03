@@ -78,7 +78,7 @@ namespace QuantConnect.Lean.DataSource.CascadeTradeAlert
         /// <param name="endDate">End date in UTC</param>
         /// <param name="symbol">Symbol filter (default _ALL)</param>
         /// <returns>List of EOD snapshot records with date information</returns>
-        public List<Dictionary<string, object?>> GetDataRange(DateTime startDate, DateTime endDate, string symbol = DefaultSymbol)
+        public new List<Dictionary<string, object?>> GetDataRange(DateTime startDate, DateTime endDate, string symbol = DefaultSymbol)
         {
             var allRecords = new List<Dictionary<string, object?>>();
             var startEastern = TradeAlertPathUtils.ConvertToEastern(startDate).Date;

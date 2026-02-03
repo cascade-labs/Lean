@@ -6,6 +6,7 @@
  * All perpetuals are settled in USDC
  */
 
+using QuantConnect;
 using QuantConnect.Brokerages;
 
 namespace QuantConnect.Lean.DataSource.CascadeHyperliquid
@@ -46,6 +47,13 @@ namespace QuantConnect.Lean.DataSource.CascadeHyperliquid
             {
                 throw new ArgumentException(
                     $"Hyperliquid only supports {SecurityType.CryptoFuture}, but received {symbol.SecurityType}",
+                    nameof(symbol));
+            }
+
+            if (!string.Equals(symbol.ID.Market, CascadeMarkets.Hyperliquid, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException(
+                    $"Hyperliquid only supports market '{CascadeMarkets.Hyperliquid}', but received '{symbol.ID.Market}'",
                     nameof(symbol));
             }
 
@@ -99,6 +107,13 @@ namespace QuantConnect.Lean.DataSource.CascadeHyperliquid
                     nameof(securityType));
             }
 
+            if (!string.Equals(market, CascadeMarkets.Hyperliquid, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException(
+                    $"Hyperliquid only supports market '{CascadeMarkets.Hyperliquid}', but received '{market}'",
+                    nameof(market));
+            }
+
             // Convert Hyperliquid coin to LEAN format
             // BTC -> BTCUSD (as LEAN represents perpetuals with USD quote)
             var leanTicker = $"{brokerageSymbol.ToUpperInvariant()}USD";
@@ -118,7 +133,8 @@ namespace QuantConnect.Lean.DataSource.CascadeHyperliquid
                 return false;
             }
 
-            return SupportedSecurityTypes.Contains(symbol.SecurityType);
+            return SupportedSecurityTypes.Contains(symbol.SecurityType)
+                && string.Equals(symbol.ID.Market, CascadeMarkets.Hyperliquid, StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
