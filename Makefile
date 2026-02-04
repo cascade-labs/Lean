@@ -1,16 +1,15 @@
 # Makefile for Cascade Labs LEAN Container
 #
 # Usage:
-#   make fast           - FAST build: DataSource projects only on pre-built LEAN (recommended)
-#   make lean_container - SLOW build: Rebuild entire LEAN from source (lean-cli method)
+#   make lean_container - Build custom LEAN container with DataSource projects
 #   make clean          - Clean build artifacts
 #   make info           - Show current configuration
 #
 # Prerequisites:
 #   - Docker available
-#   - (optional) lean-cli for the slow full rebuild
+#   - lean-cli installed (pip install lean)
 
-.PHONY: fast lean_container setup compile clean check-deps stubs stubs_install info all
+.PHONY: lean_container setup compile clean check-deps stubs stubs_install info all
 
 # Image tags
 IMAGE_TAG ?= cascadelabs-lean
@@ -23,31 +22,12 @@ DATASOURCES := CascadeHyperliquid CascadeThetaData CascadeKalshiData CascadeTrad
 LAUNCHER_CSPROJ := Launcher/QuantConnect.Lean.Launcher.csproj
 
 #############################################################################
-# FAST BUILD: Compile DataSource projects only, layer on pre-built LEAN
-# This is 10-100x faster than rebuilding everything from source
-#############################################################################
-fast: check-docker
-	@echo "=== Fast Build: DataSource Projects Only ==="
-	@echo "Base image: quantconnect/lean:latest (pre-built LEAN)"
-	@echo "Output tag: $(ENGINE_IMAGE)"
-	@echo ""
-	docker build -f Dockerfile.datasources -t $(ENGINE_IMAGE) .
-	@echo ""
-	@echo "=== Build Complete ==="
-	@echo ""
-	@echo "To use the custom image:"
-	@echo "  lean config set engine-image $(ENGINE_IMAGE)"
-	@echo ""
-
-#############################################################################
-# FULL BUILD: Compile locally and build container
-# Uses local compilation (faster than in-container) with official foundation
+# Build custom LEAN container with DataSource projects
+# Compiles locally (faster than in-container) then builds Docker image
 #############################################################################
 lean_container: check-deps setup compile
 	@echo "=== Building Cascade Labs Custom LEAN Container ==="
 	@echo "Image tag: $(IMAGE_TAG)"
-	@echo ""
-	@echo "NOTE: Consider 'make fast' for DataSource-only changes (much faster)"
 	@echo ""
 	@# Build engine image directly using official foundation (skip foundation rebuild)
 	@# Uses docker wrapper script to route to podman
@@ -67,27 +47,7 @@ compile:
 	@echo "Compilation complete"
 	@echo ""
 
-#############################################################################
-# LEAN-CLI BUILD: Full rebuild from source using lean-cli
-# Alternative method that uses lean build command
-#############################################################################
-lean_container_leancli: check-deps setup
-	@echo "=== Full LEAN Build (slow, compiles everything from source) ==="
-	@echo "Image tag: $(IMAGE_TAG)"
-	@echo ""
-	@echo "NOTE: Consider 'make fast' for DataSource-only changes (much faster)"
-	@echo ""
-	@# Add scripts directory to PATH for docker wrapper (uses podman)
-	@# lean build expects to be run from parent of Lean/ directory
-	PATH="$(CURDIR)/scripts:$$PATH" && cd .. && lean build --tag $(IMAGE_TAG) .
-	@echo ""
-	@echo "=== Build Complete ==="
-	@echo ""
-	@echo "To use the custom image:"
-	@echo "  lean config set engine-image $(ENGINE_IMAGE)"
-	@echo "  lean config set research-image $(RESEARCH_IMAGE)"
-
-# Setup: Add DataSource project references to Launcher (for full source builds)
+# Setup: Add DataSource project references to Launcher
 setup:
 	@echo "=== Setting up DataSource Project References ==="
 	@for ds in $(DATASOURCES); do \
@@ -105,17 +65,13 @@ setup:
 	done
 	@echo ""
 
-# Check Docker is available
-check-docker:
-	@command -v docker >/dev/null 2>&1 || { echo "Error: docker not found"; exit 1; }
-	@echo "Docker: OK"
-
-# Check all dependencies (for full build)
-check-deps: check-docker
+# Check all dependencies
+check-deps:
 	@echo "=== Checking Dependencies ==="
+	@command -v docker >/dev/null 2>&1 || { echo "Error: docker not found"; exit 1; }
+	@echo "  docker: OK"
 	@command -v lean >/dev/null 2>&1 || { echo "Error: lean-cli not found. Install with: pip install lean"; exit 1; }
 	@echo "  lean-cli: OK"
-	@echo "  container runtime: OK"
 	@echo ""
 
 # Clean build artifacts
@@ -136,9 +92,8 @@ info:
 		fi \
 	done
 	@echo ""
-	@echo "Build targets:"
-	@echo "  make fast           - Quick build (DataSource only, recommended)"
-	@echo "  make lean_container - Full rebuild from source (slow)"
+	@echo "Build target:"
+	@echo "  make lean_container - Build custom LEAN container"
 	@echo ""
 	@echo "Current engine image:"
 	@lean config get engine-image 2>/dev/null || echo "  (not set)"
