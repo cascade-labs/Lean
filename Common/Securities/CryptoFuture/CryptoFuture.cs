@@ -93,7 +93,9 @@ namespace QuantConnect.Securities.CryptoFuture
         /// <returns>True if the security is a crypto coin future</returns>
         private static bool IsCryptoCoinFuture(string quoteCurrency)
         {
-            return quoteCurrency != "USDT" && quoteCurrency != "BUSD" && quoteCurrency != "USDC";
+            // Linear (USDT-margined style) futures use stablecoins as quote currency
+            // USD is included for exchanges like Hyperliquid that use USD symbol naming but settle in USDC
+            return quoteCurrency != "USDT" && quoteCurrency != "BUSD" && quoteCurrency != "USDC" && quoteCurrency != "USD";
         }
 
         /// <summary>

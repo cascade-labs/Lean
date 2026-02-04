@@ -109,7 +109,7 @@ namespace QuantConnect.Lean.DataSource.CascadeHyperliquid
                 if (!_invalidSecurityTypeWarningFired)
                 {
                     _invalidSecurityTypeWarningFired = true;
-                    Log.Trace($"HyperliquidHistoryProvider: Unsupported security type '{request.Symbol.SecurityType}'. Only CryptoFuture is supported.");
+                    Log.Trace($"HyperliquidHistoryProvider: Unsupported symbol '{request.Symbol}'. Only CryptoFuture (perpetuals) and Crypto (spot) on Hyperliquid market are supported.");
                 }
                 return null;
             }

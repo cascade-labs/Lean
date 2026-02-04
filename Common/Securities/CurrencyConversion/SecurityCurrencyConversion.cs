@@ -192,63 +192,75 @@ namespace QuantConnect.Securities.CurrencyConversion
                     return mapping;
                 });
 
-            // Search for 1 leg conversions
-            foreach (var potentialConversionRateSymbol in allSymbols)
+            // Build list of source currencies to try: original + canonical alias if different
+            var sourceCurrenciesToTry = new List<string> { sourceCurrency };
+            var canonicalSource = Currencies.GetCanonicalCurrency(sourceCurrency);
+            if (canonicalSource != sourceCurrency)
             {
-                var leg1Match = potentialConversionRateSymbol.ComparePair(sourceCurrency, destinationCurrency);
-                if (leg1Match == CurrencyPairUtil.Match.NoMatch)
-                {
-                    continue;
-                }
-                var inverted = leg1Match == CurrencyPairUtil.Match.InverseMatch;
-
-                return new SecurityCurrencyConversion(sourceCurrency, destinationCurrency, new List<Step>(1)
-                {
-                    CreateStep(potentialConversionRateSymbol, inverted, securitiesBySymbol, makeNewSecurity)
-                });
+                sourceCurrenciesToTry.Add(canonicalSource);
             }
 
-            // Search for 2 leg conversions
-            foreach (var potentialConversionRateSymbol1 in allSymbols)
+            // Try each source currency (original and alias)
+            foreach (var currentSourceCurrency in sourceCurrenciesToTry)
             {
-                var middleCurrency = potentialConversionRateSymbol1.CurrencyPairDual(sourceCurrency);
-                if (middleCurrency == null)
+                // Search for 1 leg conversions
+                foreach (var potentialConversionRateSymbol in allSymbols)
                 {
-                    continue;
-                }
-
-                foreach (var potentialConversionRateSymbol2 in allSymbols)
-                {
-                    var leg2Match = potentialConversionRateSymbol2.ComparePair(middleCurrency, destinationCurrency);
-                    if (leg2Match == CurrencyPairUtil.Match.NoMatch)
+                    var leg1Match = potentialConversionRateSymbol.ComparePair(currentSourceCurrency, destinationCurrency);
+                    if (leg1Match == CurrencyPairUtil.Match.NoMatch)
                     {
                         continue;
                     }
-                    var secondStepInverted = leg2Match == CurrencyPairUtil.Match.InverseMatch;
+                    var inverted = leg1Match == CurrencyPairUtil.Match.InverseMatch;
 
-                    var steps = new List<Step>(2);
+                    return new SecurityCurrencyConversion(sourceCurrency, destinationCurrency, new List<Step>(1)
+                    {
+                        CreateStep(potentialConversionRateSymbol, inverted, securitiesBySymbol, makeNewSecurity)
+                    });
+                }
 
-                    // Step 1
-                    string baseCurrency;
-                    string quoteCurrency;
+                // Search for 2 leg conversions
+                foreach (var potentialConversionRateSymbol1 in allSymbols)
+                {
+                    var middleCurrency = potentialConversionRateSymbol1.CurrencyPairDual(currentSourceCurrency);
+                    if (middleCurrency == null)
+                    {
+                        continue;
+                    }
 
-                    CurrencyPairUtil.DecomposeCurrencyPair(
-                        potentialConversionRateSymbol1,
-                        out baseCurrency,
-                        out quoteCurrency);
+                    foreach (var potentialConversionRateSymbol2 in allSymbols)
+                    {
+                        var leg2Match = potentialConversionRateSymbol2.ComparePair(middleCurrency, destinationCurrency);
+                        if (leg2Match == CurrencyPairUtil.Match.NoMatch)
+                        {
+                            continue;
+                        }
+                        var secondStepInverted = leg2Match == CurrencyPairUtil.Match.InverseMatch;
 
-                    steps.Add(CreateStep(potentialConversionRateSymbol1,
-                        sourceCurrency == quoteCurrency,
-                        securitiesBySymbol,
-                        makeNewSecurity));
+                        var steps = new List<Step>(2);
 
-                    // Step 2
-                    steps.Add(CreateStep(potentialConversionRateSymbol2,
-                        secondStepInverted,
-                        securitiesBySymbol,
-                        makeNewSecurity));
+                        // Step 1
+                        string baseCurrency;
+                        string quoteCurrency;
 
-                    return new SecurityCurrencyConversion(sourceCurrency, destinationCurrency, steps);
+                        CurrencyPairUtil.DecomposeCurrencyPair(
+                            potentialConversionRateSymbol1,
+                            out baseCurrency,
+                            out quoteCurrency);
+
+                        steps.Add(CreateStep(potentialConversionRateSymbol1,
+                            currentSourceCurrency == quoteCurrency,
+                            securitiesBySymbol,
+                            makeNewSecurity));
+
+                        // Step 2
+                        steps.Add(CreateStep(potentialConversionRateSymbol2,
+                            secondStepInverted,
+                            securitiesBySymbol,
+                            makeNewSecurity));
+
+                        return new SecurityCurrencyConversion(sourceCurrency, destinationCurrency, steps);
+                    }
                 }
             }
 

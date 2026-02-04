@@ -76,6 +76,27 @@ namespace QuantConnect.Lean.DataSource.CascadeHyperliquid
         }
 
         /// <summary>
+        /// Gets metadata for all spot assets
+        /// </summary>
+        /// <returns>JSON object containing tokens and universe of spot pairs</returns>
+        /// <remarks>
+        /// Response format:
+        /// {
+        ///   "tokens": [{ "name": "USDC", "szDecimals": 8, "index": 0, ... }, ...],
+        ///   "universe": [{ "name": "PURR/USDC", "tokens": [1, 0], "index": 0, "isCanonical": true }, ...]
+        /// }
+        /// 
+        /// For API calls, use:
+        /// - "PURR/USDC" for canonical pairs (isCanonical: true)
+        /// - "@{index}" for non-canonical pairs (e.g., "@107" for HYPE/USDC)
+        /// </remarks>
+        public async Task<JObject?> GetSpotMetaAsync()
+        {
+            var payload = new { type = "spotMeta" };
+            return await PostRequestAsync<JObject>(InfoEndpoint, payload).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Gets extended metadata including asset contexts (mark price, funding, etc.)
         /// </summary>
         /// <returns>Array with [meta, assetCtxs]</returns>

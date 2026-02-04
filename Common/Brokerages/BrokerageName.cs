@@ -200,6 +200,11 @@ namespace QuantConnect.Brokerages
         DYDX,
 
         /// <summary>
+        /// Transaction and submit/execution rules will use Hyperliquid models
+        /// </summary>
+        Hyperliquid,
+
+        /// <summary>
         /// Transaction and submit/execution rules will use Kalshi prediction market models
         /// </summary>
         Kalshi

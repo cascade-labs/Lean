@@ -10432,7 +10432,18 @@ hyperliquid,OPUSD,cryptofuture,Optimism Perpetual,USDC,1,0.001,0.1,OP,0.1
 hyperliquid,SUIUSD,cryptofuture,Sui Perpetual,USDC,1,0.001,0.1,SUI,0.1
 hyperliquid,PEPEUSD,cryptofuture,Pepe Perpetual,USDC,1,0.00000001,100000,PEPE,100000
 
+# Hyperliquid Spot Market
+# UBTC = Unit Bitcoin, tracks BTC price 1:1
+hyperliquid,UBTCUSDC,crypto,Unit Bitcoin,USDC,1,0.1,0.0001,UBTC/USDC,0.0001
+hyperliquid,UETHUSDC,crypto,Unit Ethereum,USDC,1,0.01,0.001,UETH/USDC,0.001
+hyperliquid,USOLUSDC,crypto,Unit Solana,USDC,1,0.001,0.01,USOL/USDC,0.01
+
 # Kalshi Prediction Market Exchange
 # Binary outcome contracts (0-100 cents, settle at $0 or $1)
 # Taker fee: 7% of potential profit, Maker fee: 0%
 kalshi,[*],predictionmarket,Prediction Market Contract,USD,1,0.01,1,,1
+# Hyperliquid DEX Spot
+hyperliquid,UBTCUSD,crypto,Unit Bitcoin Spot,USDC,1,0.1,0.00001,UBTC,0.00001
+hyperliquid,UETHUSD,crypto,Unit Ethereum Spot,USDC,1,0.01,0.0001,UETH,0.0001
+hyperliquid,USOLUSD,crypto,Unit Solana Spot,USDC,1,0.01,0.001,USOL,0.001
+hyperliquid,HYPEUSD,crypto,HYPE Spot,USDC,1,0.001,0.1,HYPE,0.1

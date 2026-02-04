@@ -77,6 +77,43 @@ namespace QuantConnect
         public const string NullCurrency = "QCC";
 
         /// <summary>
+        /// Currency aliases that map to their canonical equivalent.
+        /// Used when a currency tracks another 1:1 and should use its conversion path.
+        /// Example: UBTC (Unit Bitcoin on Hyperliquid) tracks BTC 1:1.
+        /// </summary>
+        public static readonly IReadOnlyDictionary<string, string> CurrencyAliases = new Dictionary<string, string>
+        {
+            { "UBTC", "BTC" },  // Unit Bitcoin on Hyperliquid spot
+            { "UETH", "ETH" },  // Unit ETH if it exists
+            { "USOL", "SOL" },  // Unit SOL if it exists
+        };
+
+        /// <summary>
+        /// Gets the canonical currency for a given currency symbol.
+        /// Returns the alias target if one exists, otherwise returns the original currency.
+        /// </summary>
+        /// <param name="currency">The currency symbol to resolve</param>
+        /// <returns>The canonical currency symbol</returns>
+        public static string GetCanonicalCurrency(string currency)
+        {
+            if (string.IsNullOrEmpty(currency))
+            {
+                return currency;
+            }
+            return CurrencyAliases.TryGetValue(currency, out var canonical) ? canonical : currency;
+        }
+
+        /// <summary>
+        /// Checks if the given currency has an alias (i.e., tracks another currency 1:1).
+        /// </summary>
+        /// <param name="currency">The currency symbol to check</param>
+        /// <returns>True if the currency has an alias</returns>
+        public static bool HasCurrencyAlias(string currency)
+        {
+            return !string.IsNullOrEmpty(currency) && CurrencyAliases.ContainsKey(currency);
+        }
+
+        /// <summary>
         /// A mapping of currency codes to their display symbols
         /// </summary>
         /// <remarks>
@@ -259,6 +296,18 @@ namespace QuantConnect
         };
 
         /// <summary>
+        /// Define some StableCoins that don't have direct pairs for base currencies in our SPDB in Hyperliquid market
+        /// This is because some CryptoExchanges do not define direct pairs with the stablecoins they offer.
+        ///
+        /// We use this to allow setting cash amounts for these stablecoins without needing a conversion
+        /// security.
+        /// </summary>
+        private static readonly HashSet<string> _stableCoinsWithoutPairsHyperliquid = new HashSet<string>
+        {
+            "USDCUSD"
+        };
+
+        /// <summary>
         /// Dictionary to save StableCoins in different Markets
         /// </summary>
         private static readonly Dictionary<string, HashSet<string>> _stableCoinsWithoutPairsMarkets = new Dictionary<string, HashSet<string>>
@@ -267,7 +316,8 @@ namespace QuantConnect
             { Market.Bitfinex , _stableCoinsWithoutPairsBitfinex},
             { Market.Coinbase, _stableCoinsWithoutPairsCoinbase},
             { Market.Bybit , _stableCoinsWithoutPairsBybit},
-            { Market.DYDX , _stableCoinsWithoutPairsdYdX}
+            { Market.DYDX , _stableCoinsWithoutPairsdYdX},
+            { Market.Hyperliquid , _stableCoinsWithoutPairsHyperliquid}
         };
 
         private static readonly HashSet<string> _dollarStablePairs = ["USDT", "USDC", USD];

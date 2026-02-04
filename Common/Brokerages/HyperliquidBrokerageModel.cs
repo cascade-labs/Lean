@@ -85,10 +85,14 @@ public class HyperliquidBrokerageModel : DefaultBrokerageModel
     /// <returns>The Hyperliquid fee model</returns>
     public override IFeeModel GetFeeModel(Security security)
     {
+        if (security.IsInternalFeed() || security.Type == SecurityType.Crypto || security.Type == SecurityType.Base)
+        {
+            return base.GetFeeModel(security);
+        }
+
         return security.Type switch
         {
             SecurityType.CryptoFuture => new HyperliquidFeeModel(),
-            SecurityType.Base => base.GetFeeModel(security),
             _ => throw new ArgumentOutOfRangeException(nameof(security), security,
                 $"Hyperliquid only supports {SecurityType.CryptoFuture}, got {security.Type}")
         };

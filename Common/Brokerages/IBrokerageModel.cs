@@ -291,6 +291,9 @@ namespace QuantConnect.Brokerages
                 case BrokerageName.DYDX:
                     return new dYdXBrokerageModel(accountType);
 
+                case BrokerageName.Hyperliquid:
+                    return new HyperliquidBrokerageModel(accountType);
+
                 case BrokerageName.Kalshi:
                     return new KalshiBrokerageModel(accountType);
 
@@ -396,6 +399,9 @@ namespace QuantConnect.Brokerages
 
                 case TastytradeBrokerageModel:
                     return BrokerageName.Tastytrade;
+
+                case HyperliquidBrokerageModel _:
+                    return BrokerageName.Hyperliquid;
 
                 case KalshiBrokerageModel _:
                     return BrokerageName.Kalshi;
