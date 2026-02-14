@@ -86,6 +86,8 @@ MARKET_PROVIDERS = {
             "QuantConnect.Lean.DataSource.Polygon.PolygonMapFileProvider",
         "factor-file-provider":
             "QuantConnect.Lean.DataSource.Polygon.PolygonFactorFileProvider",
+        "fundamental-data-provider":
+            "QuantConnect.Lean.DataSource.Polygon.PolygonUniverseDataProvider",
     },
     "kalshi": {
         "label": "Prediction Markets (Kalshi)",
@@ -212,6 +214,8 @@ class KernelBridge:
             "history-provider": provider_cfg["history-provider"],
             "map-file-provider": provider_cfg["map-file-provider"],
             "factor-file-provider": provider_cfg["factor-file-provider"],
+            **({"fundamental-data-provider": provider_cfg["fundamental-data-provider"]}
+               if "fundamental-data-provider" in provider_cfg else {}),
         }
         # Inject all lean-cli credentials into the container config
         config.update(LEAN_CREDENTIALS)
