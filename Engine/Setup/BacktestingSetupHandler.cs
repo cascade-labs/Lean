@@ -177,9 +177,53 @@ namespace QuantConnect.Lean.Engine.Setup
                     algorithm.Schedule.SetEventSchedule(parameters.RealTimeHandler);
 
                     // set the option chain provider
-                    var optionChainProvider = new BacktestingOptionChainProvider();
                     var initParameters = new ChainProviderInitializeParameters(parameters.MapFileProvider, algorithm.HistoryProvider);
-                    optionChainProvider.Initialize(initParameters);
+                    var optionChainProviderTypeName = Config.Get("option-chain-provider");
+                    IOptionChainProvider optionChainProvider;
+                    if (!string.IsNullOrEmpty(optionChainProviderTypeName))
+                    {
+                        Log.Trace($"BacktestingSetupHandler: Using configured option chain provider: {optionChainProviderTypeName}");
+                        try
+                        {
+                            optionChainProvider = Composer.Instance.GetExportedValueByTypeName<IOptionChainProvider>(optionChainProviderTypeName);
+                            Log.Trace($"BacktestingSetupHandler: Successfully created {optionChainProvider.GetType().Name}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Error($"BacktestingSetupHandler: Failed to create option chain provider '{optionChainProviderTypeName}': {ex.Message}");
+                            var backtestingProvider = new BacktestingOptionChainProvider();
+                            backtestingProvider.Initialize(initParameters);
+                            optionChainProvider = backtestingProvider;
+                        }
+                    }
+                    else
+                    {
+                        // Auto-detect: if the history provider includes Polygon, use PolygonOptionChainProvider
+                        var historyProviderConfig = Config.Get("history-provider", "");
+                        if (historyProviderConfig.Contains("Polygon", StringComparison.OrdinalIgnoreCase))
+                        {
+                            Log.Trace("BacktestingSetupHandler: Auto-detected Polygon history provider, using PolygonOptionChainProvider");
+                            try
+                            {
+                                optionChainProvider = Composer.Instance.GetExportedValueByTypeName<IOptionChainProvider>("PolygonOptionChainProvider");
+                                Log.Trace($"BacktestingSetupHandler: Successfully created {optionChainProvider.GetType().Name}");
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Error($"BacktestingSetupHandler: Failed to create PolygonOptionChainProvider: {ex.Message}. Falling back to default.");
+                                var backtestingProvider = new BacktestingOptionChainProvider();
+                                backtestingProvider.Initialize(initParameters);
+                                optionChainProvider = backtestingProvider;
+                            }
+                        }
+                        else
+                        {
+                            Log.Trace("BacktestingSetupHandler: Using default BacktestingOptionChainProvider");
+                            var backtestingProvider = new BacktestingOptionChainProvider();
+                            backtestingProvider.Initialize(initParameters);
+                            optionChainProvider = backtestingProvider;
+                        }
+                    }
                     algorithm.SetOptionChainProvider(new CachingOptionChainProvider(optionChainProvider));
 
                     // set the future chain provider

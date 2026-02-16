@@ -7,10 +7,11 @@ research image with a persistent IPython kernel (bridge.py). Exposes
 MCP tools that let Claude Code execute QuantConnect Python code
 interactively.
 
-Environment variables (all optional):
-  LEAN_RESEARCH_IMAGE  Docker image  (default: lean-cli/research:cascadelabs-lean)
-  LEAN_DATA_DIR        Host path to LEAN market data
-  LEAN_CONTAINER_NAME  Container name (default: lean_research_mcp)
+Environment variables:
+  LEAN_DATA_PROVIDER_HISTORICAL  **Required.** One of: polygon, kalshi, hyper
+  LEAN_RESEARCH_IMAGE            Docker image  (default: lean-cli/research:cascadelabs-lean)
+  LEAN_DATA_DIR                  Host path to LEAN market data
+  LEAN_CONTAINER_NAME            Container name (default: lean_research_mcp)
 """
 
 from __future__ import annotations
@@ -23,9 +24,14 @@ import subprocess
 import sys
 import tempfile
 import threading
+import uuid
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
+
+# Dashboard — sibling module in the same directory
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import dashboard as _dashboard
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -35,7 +41,10 @@ LEAN_IMAGE = os.environ.get(
     "LEAN_RESEARCH_IMAGE", "lean-cli/research:cascadelabs-lean"
 )
 LEAN_DATA_DIR = os.environ.get("LEAN_DATA_DIR", "")
-CONTAINER_NAME = os.environ.get("LEAN_CONTAINER_NAME", "lean_research_mcp")
+CONTAINER_NAME = os.environ.get(
+    "LEAN_CONTAINER_NAME",
+    f"lean_research_mcp_{uuid.uuid4().hex[:8]}",
+)
 # bridge.py is baked into the Docker image at this path
 BRIDGE_PATH_IN_CONTAINER = "/Lean/Launcher/bin/Debug/bridge.py"
 
@@ -88,6 +97,8 @@ MARKET_PROVIDERS = {
             "QuantConnect.Lean.DataSource.Polygon.PolygonFactorFileProvider",
         "fundamental-data-provider":
             "QuantConnect.Lean.DataSource.Polygon.PolygonUniverseDataProvider",
+        "option-chain-provider":
+            "QuantConnect.Lean.DataSource.Polygon.PolygonOptionChainProvider",
     },
     "kalshi": {
         "label": "Prediction Markets (Kalshi)",
@@ -117,7 +128,21 @@ MARKET_PROVIDERS = {
     },
 }
 
-DEFAULT_MARKET = "polygon"
+# ---------------------------------------------------------------------------
+# Mandatory: data provider must be set by the caller via env var
+# ---------------------------------------------------------------------------
+
+_initial_market = os.environ.get("LEAN_DATA_PROVIDER_HISTORICAL", "").strip().lower()
+if not _initial_market:
+    raise RuntimeError(
+        "LEAN_DATA_PROVIDER_HISTORICAL env var is required. "
+        f"Set it to one of: {', '.join(MARKET_PROVIDERS.keys())}"
+    )
+if _initial_market not in MARKET_PROVIDERS:
+    raise RuntimeError(
+        f"Unknown LEAN_DATA_PROVIDER_HISTORICAL='{_initial_market}'. "
+        f"Valid options: {', '.join(MARKET_PROVIDERS.keys())}"
+    )
 
 
 def _detect_data_directory() -> str:
@@ -175,11 +200,11 @@ CHART_DIR = Path(tempfile.mkdtemp(prefix="lean_charts_"))
 class KernelBridge:
     """Manages the Docker container and bridge.py subprocess."""
 
-    def __init__(self) -> None:
+    def __init__(self, market: str) -> None:
         self._proc: subprocess.Popen | None = None
         self._lock = threading.Lock()
         self._config_path: str | None = None
-        self._market: str = DEFAULT_MARKET
+        self._market: str = market
 
     # -- lifecycle ----------------------------------------------------------
 
@@ -216,6 +241,8 @@ class KernelBridge:
             "factor-file-provider": provider_cfg["factor-file-provider"],
             **({"fundamental-data-provider": provider_cfg["fundamental-data-provider"]}
                if "fundamental-data-provider" in provider_cfg else {}),
+            **({"option-chain-provider": provider_cfg["option-chain-provider"]}
+               if "option-chain-provider" in provider_cfg else {}),
         }
         # Inject all lean-cli credentials into the container config
         config.update(LEAN_CREDENTIALS)
@@ -229,13 +256,14 @@ class KernelBridge:
             "-i",                   # Keep stdin open for the protocol
             "--rm",                 # Remove container on exit
             "--name", CONTAINER_NAME,
-            "--memory", "8g",
+            "--memory", "16g",
             "-v", f"{self._config_path}:/Lean/Launcher/bin/Debug/config.json:ro",
         ]
 
-        # Mount market data if available
+        # Mount market data read-write so DownloaderDataProvider can cache
+        # downloaded data to disk (persists across sessions for backtests)
         if LEAN_DATA_DIR and Path(LEAN_DATA_DIR).is_dir():
-            cmd.extend(["-v", f"{LEAN_DATA_DIR}:/Lean/Data:ro"])
+            cmd.extend(["-v", f"{LEAN_DATA_DIR}:/Lean/Data:rw"])
 
         cmd.extend([
             "-w", "/Lean/Launcher/bin/Debug",
@@ -320,9 +348,12 @@ class KernelBridge:
         )
 
 
-# Global bridge instance
-bridge = KernelBridge()
+# Global bridge instance — initialized with the mandatory market
+bridge = KernelBridge(market=_initial_market)
 atexit.register(bridge.stop)
+
+# Start the real-time web dashboard
+_dashboard.start()
 
 # ---------------------------------------------------------------------------
 # MCP server
@@ -345,9 +376,12 @@ def execute_code(code: str) -> str:
     """
     global _chart_counter
 
+    _dashboard.push_event("code_input", {"code": code})
+
     try:
         result = bridge.execute(code)
     except RuntimeError as exc:
+        _dashboard.push_event("code_error", {"error": str(exc)})
         return f"BRIDGE ERROR: {exc}"
 
     parts: list[str] = []
@@ -357,6 +391,10 @@ def execute_code(code: str) -> str:
 
     if result.get("error"):
         parts.append(f"ERROR:\n{result['error']}")
+        _dashboard.push_event("code_error", {
+            "error": result.get("error", ""),
+            "stderr": result.get("stderr", ""),
+        })
 
     if result.get("result"):
         parts.append(f"=> {result['result']}")
@@ -366,14 +404,25 @@ def execute_code(code: str) -> str:
             chart_path = CHART_DIR / f"chart_{_chart_counter}.png"
             chart_path.write_bytes(base64.b64decode(display["image/png"]))
             parts.append(f"[Chart saved: {chart_path}]")
+            _dashboard.push_event("chart", {
+                "png_base64": display["image/png"],
+                "index": _chart_counter,
+            })
             _chart_counter += 1
         if "text/html" in display:
             html = display["text/html"]
             if len(html) > 5000:
                 html = html[:5000] + "\n... (truncated)"
             parts.append(html)
+            _dashboard.push_event("html_display", {"html": html})
         elif "text/plain" in display:
             parts.append(display["text/plain"])
+
+    if not result.get("error"):
+        _dashboard.push_event("code_output", {
+            "stdout": result.get("stdout", ""),
+            "result": result.get("result", ""),
+        })
 
     return "\n\n".join(parts) if parts else "(no output)"
 
@@ -396,19 +445,38 @@ def reset_kernel(market: str = "") -> str:
             f"Unknown market '{market}'. "
             f"Valid options: {', '.join(MARKET_PROVIDERS.keys())}"
         )
+    _dashboard.push_event("status", {
+        "message": f"Restarting kernel{' with market: ' + market if market else ''}...",
+        "level": "info",
+    })
     try:
         bridge.restart(market=market or None)
     except RuntimeError as exc:
+        _dashboard.push_event("status", {
+            "message": f"Restart failed: {exc}",
+            "level": "error",
+        })
         return f"RESTART FAILED: {exc}"
     label = MARKET_PROVIDERS[bridge._market]["label"]
+    _dashboard.push_event("kernel_restart", {
+        "market": bridge._market,
+        "label": label,
+    })
     return f"Kernel restarted with {label} data provider. Fresh QuantBook available as `qb`."
 
 
 @mcp.tool()
 def kernel_status() -> str:
     """Check whether the LEAN research kernel is running."""
-    if bridge._proc and bridge._proc.poll() is None:
-        label = MARKET_PROVIDERS[bridge._market]["label"]
+    running = bridge._proc is not None and bridge._proc.poll() is None
+    label = MARKET_PROVIDERS[bridge._market]["label"]
+    _dashboard.push_event("kernel_status", {
+        "running": running,
+        "market": bridge._market,
+        "label": label,
+        "container": CONTAINER_NAME,
+    })
+    if running:
         return (
             f"Kernel is running (container: {CONTAINER_NAME}, "
             f"image: {LEAN_IMAGE}, market: {label})"

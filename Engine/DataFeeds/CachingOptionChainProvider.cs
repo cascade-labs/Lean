@@ -26,7 +26,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
     /// </summary>
     public class CachingOptionChainProvider : IOptionChainProvider
     {
-        private readonly ConcurrentDictionary<Symbol, OptionChainCacheEntry> _cache = new ConcurrentDictionary<Symbol, OptionChainCacheEntry>();
+        private readonly ConcurrentDictionary<(Symbol, DateTime), Lazy<List<Symbol>>> _cache = new();
         private readonly IOptionChainProvider _optionChainProvider;
 
         /// <summary>
@@ -47,32 +47,10 @@ namespace QuantConnect.Lean.Engine.DataFeeds
         /// <returns>The list of option contracts</returns>
         public IEnumerable<Symbol> GetOptionContractList(Symbol symbol, DateTime date)
         {
-            List<Symbol> symbols;
-
-            OptionChainCacheEntry entry;
-            if (!_cache.TryGetValue(symbol, out entry) || date.Date != entry.Date)
-            {
-                symbols = _optionChainProvider.GetOptionContractList(symbol, date.Date).ToList();
-                _cache[symbol] = new OptionChainCacheEntry(date.Date, symbols);
-            }
-            else
-            {
-                symbols = entry.Symbols;
-            }
-
-            return symbols;
-        }
-
-        private class OptionChainCacheEntry
-        {
-            public DateTime Date { get; }
-            public List<Symbol> Symbols { get; }
-
-            public OptionChainCacheEntry(DateTime date, List<Symbol> symbols)
-            {
-                Date = date;
-                Symbols = symbols;
-            }
+            var key = (symbol, date.Date);
+            var lazy = _cache.GetOrAdd(key, k =>
+                new Lazy<List<Symbol>>(() => _optionChainProvider.GetOptionContractList(k.Item1, k.Item2).ToList()));
+            return lazy.Value;
         }
     }
 }

@@ -296,6 +296,13 @@
   "polygon-skip-subscription-validation": true,
   "polygon-license-type": "Individual",
 
+  // Polygon S3 flat file configuration (files.massive.com)
+  // Enables bulk download of options data instead of per-contract REST API calls
+  "polygon-s3-endpoint": "",
+  "polygon-s3-access-key": "",
+  "polygon-s3-secret-key": "",
+  "polygon-s3-bucket": "flatfiles",
+
   // Hyperliquid S3 historical data configuration
   // AWS credentials with S3 read access for hl-mainnet-node-data bucket (requester-pays)
   "hyperliquid-aws-access-key-id": "",

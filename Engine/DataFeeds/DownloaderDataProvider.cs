@@ -26,6 +26,7 @@ using QuantConnect.Interfaces;
 using System.Collections.Generic;
 using QuantConnect.Configuration;
 using System.Collections.Concurrent;
+using System.Threading;
 using QuantConnect.Data.UniverseSelection;
 
 namespace QuantConnect.Lean.Engine.DataFeeds
@@ -35,6 +36,11 @@ namespace QuantConnect.Lean.Engine.DataFeeds
     /// </summary>
     public class DownloaderDataProvider : BaseDownloaderDataProvider
     {
+        /// <summary>
+        /// Limits concurrent downloads to avoid thread pool starvation from sync-over-async HTTP calls
+        /// </summary>
+        private readonly static SemaphoreSlim DownloadSemaphore = new(2, 2);
+
         /// <summary>
         /// Synchronizer in charge of guaranteeing a single operation per file path
         /// </summary>
@@ -80,6 +86,11 @@ namespace QuantConnect.Lean.Engine.DataFeeds
         {
             return DownloadOnce(key, s =>
             {
+                // Limit concurrent downloads to prevent thread pool starvation when many
+                // subscriptions (e.g. 20 option contracts) trigger simultaneous API calls
+                DownloadSemaphore.Wait();
+                try
+                {
                 if (LeanData.TryParsePath(key, out var symbol, out var date, out var resolution, out var tickType, out var dataType))
                 {
                     if (symbol.SecurityType == SecurityType.Base)
@@ -197,6 +208,11 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                     {
                         Log.Error(e);
                     }
+                }
+                }
+                finally
+                {
+                    DownloadSemaphore.Release();
                 }
             });
         }
