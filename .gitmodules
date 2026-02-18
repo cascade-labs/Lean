@@ -1,3 +1,6 @@
 [submodule "DataSource/Polygon"]
 	path = DataSource/Polygon
 	url = git@github.com:cascade-labs/Lean.DataSource.Polygon.git
+[submodule "lean-mcp"]
+	path = lean-mcp
+	url = git@github.com:cascade-labs/lean-mcp.git
