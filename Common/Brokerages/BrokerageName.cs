@@ -207,6 +207,12 @@ namespace QuantConnect.Brokerages
         /// <summary>
         /// Transaction and submit/execution rules will use Hyperliquid perpetual futures models
         /// </summary>
-        Hyperliquid
+        Hyperliquid,
+
+        /// <summary>
+        /// Transaction and submit/execution rules will use Fidelity models
+        /// (BrokerageLink / 401k equity/ETF trading via web automation)
+        /// </summary>
+        Fidelity
     }
 }

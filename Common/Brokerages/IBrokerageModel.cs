@@ -297,6 +297,9 @@ namespace QuantConnect.Brokerages
                 case BrokerageName.Hyperliquid:
                     return new HyperliquidBrokerageModel(accountType);
 
+                case BrokerageName.Fidelity:
+                    return new FidelityBrokerageModel(accountType);
+
                 default:
                     throw new ArgumentOutOfRangeException(nameof(brokerage), brokerage, null);
             }
@@ -402,6 +405,9 @@ namespace QuantConnect.Brokerages
 
                 case KalshiBrokerageModel _:
                     return BrokerageName.Kalshi;
+
+                case FidelityBrokerageModel _:
+                    return BrokerageName.Fidelity;
 
                 case DefaultBrokerageModel _:
                     return BrokerageName.Default;
