@@ -108,7 +108,8 @@ namespace QuantConnect.Lean.DataSource.CascadeCommon
             {
                 BucketName = bucket,
                 Key = key,
-                InputStream = new MemoryStream(data)
+                InputStream = new MemoryStream(data),
+                UseChunkEncoding = false
             };
             await _client.PutObjectAsync(putRequest);
             Log.Debug($"CascadeS3Client: Uploaded {data.Length} bytes to {bucket}/{key}");

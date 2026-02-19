@@ -1,0 +1,9 @@
+{
+  "name": "lean-container-build-and-push-registry",
+  "sessions": [
+    {
+      "kind": "tmux",
+      "command": "make lean_container && make push-registry"
+    }
+  ]
+}
