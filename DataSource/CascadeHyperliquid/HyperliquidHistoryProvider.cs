@@ -5,6 +5,7 @@
  * Implements IHistoryProvider for LEAN integration
  */
 
+using System.Collections.Concurrent;
 using NodaTime;
 using Newtonsoft.Json.Linq;
 using QuantConnect.Data;
@@ -530,8 +531,7 @@ namespace QuantConnect.Lean.DataSource.CascadeHyperliquid
         /// </summary>
         private List<HyperliquidFill> DownloadS3Fills(string coin, DateTime startUtc, DateTime endUtc)
         {
-            var allFills = new List<HyperliquidFill>();
-            if (_s3Client == null || !_s3Client.IsConfigured) return allFills;
+            if (_s3Client == null || !_s3Client.IsConfigured) return new List<HyperliquidFill>();
 
             // Clamp to Hyperliquid launch date — no data exists before this
             if (startUtc < MinimumHistoryDate)
@@ -539,14 +539,15 @@ namespace QuantConnect.Lean.DataSource.CascadeHyperliquid
                 startUtc = MinimumHistoryDate;
             }
 
-            if (startUtc >= endUtc) return allFills;
+            if (startUtc >= endUtc) return new List<HyperliquidFill>();
 
-            // Iterate through each hour in the range
+            // Build list of (dateStr, hour) tuples to download
             var currentHour = new DateTime(startUtc.Year, startUtc.Month, startUtc.Day, startUtc.Hour, 0, 0, DateTimeKind.Utc);
             var lastHour = new DateTime(endUtc.Year, endUtc.Month, endUtc.Day, endUtc.Hour, 0, 0, DateTimeKind.Utc);
 
-            // Cache prefix lookups per date to avoid repeated S3 list calls
+            // Resolve prefixes per date (sequential — only 1-2 dates typically)
             var prefixCache = new Dictionary<string, string?>();
+            var hourlyRequests = new List<(string dateStr, int hour, string prefix)>();
 
             while (currentHour <= lastHour)
             {
@@ -565,26 +566,34 @@ namespace QuantConnect.Lean.DataSource.CascadeHyperliquid
 
                 if (prefix != null)
                 {
-                    var hour = currentHour.Hour;
-                    using var stream = _s3Client.DownloadAndDecompress(prefix, dateStr, hour);
-                    if (stream != null)
-                    {
-                        IEnumerable<HyperliquidFill> fills;
-                        if (prefix == HyperliquidS3Client.NodeFillsByBlockPrefixPath)
-                        {
-                            fills = HyperliquidFillParser.ParseNodeFillsByBlock(stream, coin);
-                        }
-                        else
-                        {
-                            fills = HyperliquidFillParser.ParseNodeTrades(stream, coin);
-                        }
-
-                        allFills.AddRange(fills);
-                    }
+                    hourlyRequests.Add((dateStr, currentHour.Hour, prefix));
                 }
 
                 currentHour = currentHour.AddHours(1);
             }
+
+            // Download and parse hours in parallel. The S3 client's in-memory cache
+            // ensures each file is only downloaded once even across multiple symbols.
+            var fillBags = new ConcurrentBag<List<HyperliquidFill>>();
+
+            Parallel.ForEach(hourlyRequests, new ParallelOptions { MaxDegreeOfParallelism = 8 }, req =>
+            {
+                using var stream = _s3Client.DownloadAndDecompress(req.prefix, req.dateStr, req.hour);
+                if (stream != null)
+                {
+                    var fills = req.prefix == HyperliquidS3Client.NodeFillsByBlockPrefixPath
+                        ? HyperliquidFillParser.ParseNodeFillsByBlock(stream, coin).ToList()
+                        : HyperliquidFillParser.ParseNodeTrades(stream, coin).ToList();
+
+                    if (fills.Count > 0)
+                    {
+                        fillBags.Add(fills);
+                    }
+                }
+            });
+
+            // Merge and sort by time
+            var allFills = fillBags.SelectMany(f => f).OrderBy(f => f.TimeUtc).ToList();
 
             Log.Trace($"HyperliquidHistoryProvider: Downloaded {allFills.Count} fills from S3 for {coin} ({startUtc:yyyy-MM-dd HH:mm} to {endUtc:yyyy-MM-dd HH:mm})");
             return allFills;

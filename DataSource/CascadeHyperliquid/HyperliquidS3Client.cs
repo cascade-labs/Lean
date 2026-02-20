@@ -42,7 +42,7 @@ namespace QuantConnect.Lean.DataSource.CascadeHyperliquid
         private readonly AmazonS3Client? _client;
         private readonly CascadeS3Client _cacheClient;
         private readonly string _cacheBucket;
-        private readonly ConcurrentDictionary<string, object> _downloadLocks = new();
+        private readonly ConcurrentDictionary<string, Lazy<byte[]?>> _memoryCache = new();
         private readonly Random _jitterRandom = new();
         private bool _disposed;
 
@@ -109,9 +109,9 @@ namespace QuantConnect.Lean.DataSource.CascadeHyperliquid
         private static string GetCacheKey(string key) => key.Replace(".lz4", ".json");
 
         /// <summary>
-        /// Downloads and decompresses an hourly file from S3. Checks OCI S3 cache first,
-        /// falls back to AWS download with LZ4 decompression, and uploads the result to cache.
-        /// Concurrent requests for the same key share a single download via Lazy.
+        /// Downloads and decompresses an hourly file from S3. Uses an in-memory cache so that
+        /// repeated requests for the same key (e.g., different coins filtering the same hourly file)
+        /// only download once. Falls back to OCI S3 cache, then AWS with LZ4 decompression.
         /// </summary>
         /// <param name="prefix">S3 prefix (e.g., "node_trades/hourly")</param>
         /// <param name="date">Date string YYYYMMDD</param>
@@ -123,18 +123,23 @@ namespace QuantConnect.Lean.DataSource.CascadeHyperliquid
 
             var key = $"{prefix}/{date}/{hour}.lz4";
 
-            // Per-key lock: first caller downloads from AWS and caches to OCI S3.
-            // Concurrent callers wait, then hit OCI S3 cache. No data held in memory.
-            var lockObj = _downloadLocks.GetOrAdd(key, _ => new object());
-            byte[]? data;
-            lock (lockObj)
-            {
-                data = FetchData(key);
-            }
+            // Lazy<T> ensures concurrent callers for the same key share a single download.
+            // Subsequent calls for the same key return the cached byte[] instantly.
+            var lazy = _memoryCache.GetOrAdd(key, k => new Lazy<byte[]?>(
+                () => FetchData(k), LazyThreadSafetyMode.ExecutionAndPublication));
 
+            var data = lazy.Value;
             if (data == null) return null;
 
             return new MemoryStream(data);
+        }
+
+        /// <summary>
+        /// Clears the in-memory cache. Call after a backtest completes to free memory.
+        /// </summary>
+        public void ClearMemoryCache()
+        {
+            _memoryCache.Clear();
         }
 
         /// <summary>
