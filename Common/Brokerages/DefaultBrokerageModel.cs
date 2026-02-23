@@ -28,6 +28,7 @@ using QuantConnect.Securities.CryptoFuture;
 using QuantConnect.Securities.Equity;
 using QuantConnect.Securities.Future;
 using QuantConnect.Securities.Option;
+using QuantConnect.Securities.PredictionMarket;
 using QuantConnect.Util;
 
 namespace QuantConnect.Brokerages
@@ -53,7 +54,8 @@ namespace QuantConnect.Brokerages
             {SecurityType.Crypto, Market.Coinbase},
             {SecurityType.CryptoFuture, Market.Binance},
             {SecurityType.Index, Market.USA},
-            {SecurityType.IndexOption, Market.USA}
+            {SecurityType.IndexOption, Market.USA},
+            {SecurityType.PredictionMarket, Market.Kalshi}
         }.ToReadOnlyDictionary();
 
         /// <summary>
@@ -238,6 +240,7 @@ namespace QuantConnect.Brokerages
                 case SecurityType.CryptoFuture:
                 case SecurityType.Index:
                 case SecurityType.IndexOption:
+                case SecurityType.PredictionMarket:
                     return new ImmediateFillModel();
                 default:
                     throw new ArgumentOutOfRangeException(Messages.DefaultBrokerageModel.InvalidSecurityTypeToGetFillModel(this, security));
@@ -344,6 +347,7 @@ namespace QuantConnect.Brokerages
                 SecurityType.FutureOption => new FuturesOptionsMarginModel(RequiredFreeBuyingPowerPercent, (Option)security),
                 SecurityType.IndexOption => new OptionMarginModel(RequiredFreeBuyingPowerPercent),
                 SecurityType.Option => new OptionMarginModel(RequiredFreeBuyingPowerPercent),
+                SecurityType.PredictionMarket => new PredictionMarketBuyingPowerModel(),
                 _ => new SecurityMarginModel(GetLeverage(security), RequiredFreeBuyingPowerPercent)
             };
         }
