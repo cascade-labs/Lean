@@ -304,6 +304,22 @@ namespace QuantConnect
             }
         }
 
+        /// <summary>
+        /// Gets the prediction market token type (Yes or No).
+        /// This only applies if SecurityType is PredictionMarket and will throw an exception otherwise.
+        /// </summary>
+        public PredictionMarketTokenType TokenType
+        {
+            get
+            {
+                if (SecurityType != SecurityType.PredictionMarket)
+                {
+                    throw new InvalidOperationException("TokenType is only valid for PredictionMarket security type.");
+                }
+                return (PredictionMarketTokenType)(int)ExtractFromProperties(PutCallOffset, PutCallWidth);
+            }
+        }
+
         #endregion
 
         #region Constructors
@@ -626,6 +642,19 @@ namespace QuantConnect
         public static SecurityIdentifier GeneratePredictionMarket(string symbol, string market)
         {
             return Generate(DefaultDate, symbol, SecurityType.PredictionMarket, market);
+        }
+
+        /// <summary>
+        /// Generates a new <see cref="SecurityIdentifier"/> for a prediction market token (YES or NO)
+        /// </summary>
+        /// <param name="symbol">The prediction market contract ticker</param>
+        /// <param name="market">The security's market (e.g., kalshi)</param>
+        /// <param name="tokenType">The token type (Yes or No)</param>
+        /// <returns>A new <see cref="SecurityIdentifier"/> representing the specified prediction market token</returns>
+        public static SecurityIdentifier GeneratePredictionMarketToken(string symbol, string market, PredictionMarketTokenType tokenType)
+        {
+            return Generate(DefaultDate, symbol, SecurityType.PredictionMarket, market,
+                optionRight: (OptionRight)(int)tokenType);
         }
 
         /// <summary>

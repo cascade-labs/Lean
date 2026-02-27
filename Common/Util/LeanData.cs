@@ -643,7 +643,10 @@ namespace QuantConnect.Util
                     return !isHourOrDaily ? Path.Combine(directory, symbol.ID.Symbol.ToLowerInvariant()) : directory;
 
                 case SecurityType.PredictionMarket:
-                    return !isHourOrDaily ? Path.Combine(directory, symbol.Value.ToLowerInvariant()) : directory;
+                    var pmTicker = symbol.ID.Symbol.ToLowerInvariant();
+                    if (symbol.ID.TokenType == PredictionMarketTokenType.No)
+                        pmTicker += "_no";
+                    return !isHourOrDaily ? Path.Combine(directory, pmTicker) : directory;
 
                 case SecurityType.Commodity:
                 default:
@@ -840,12 +843,12 @@ namespace QuantConnect.Util
                         ) + ".csv";
 
                 case SecurityType.PredictionMarket:
+                    var pmEntryTicker = symbol.ID.Symbol.ToLowerInvariant();
+                    if (symbol.ID.TokenType == PredictionMarketTokenType.No)
+                        pmEntryTicker += "_no";
                     if (isHourOrDaily)
-                    {
-                        return $"{symbol.Value.ToLowerInvariant()}.csv";
-                    }
-
-                    return Invariant($"{formattedDate}_{symbol.Value.ToLowerInvariant()}_{resolution.ResolutionToLower()}_{tickType.TickTypeToLower()}.csv");
+                        return $"{pmEntryTicker}.csv";
+                    return Invariant($"{formattedDate}_{pmEntryTicker}_{resolution.ResolutionToLower()}_{tickType.TickTypeToLower()}.csv");
 
                 case SecurityType.Commodity:
                 default:
@@ -915,7 +918,10 @@ namespace QuantConnect.Util
                 case SecurityType.PredictionMarket:
                     if (isHourOrDaily)
                     {
-                        return $"{symbol.Value.ToLowerInvariant()}_{tickTypeString}.zip";
+                        var pmZipTicker = symbol.ID.Symbol.ToLowerInvariant();
+                        if (symbol.ID.TokenType == PredictionMarketTokenType.No)
+                            pmZipTicker += "_no";
+                        return $"{pmZipTicker}_{tickTypeString}.zip";
                     }
 
                     return $"{formattedDate}_{tickTypeString}.zip";
@@ -1298,6 +1304,24 @@ namespace QuantConnect.Util
                         ticker = info[info.Count - 2];
                     }
                 }
+                else if (securityType == SecurityType.PredictionMarket)
+                {
+                    // Prediction market tickers may contain _no suffix that must be preserved through round-trip.
+                    // The generic split('_') below would strip it, so handle separately.
+                    market = info[startIndex + 1];
+                    if (resolution < Resolution.Hour)
+                    {
+                        // Sub-hourly: directory name is the full ticker (e.g. "kxbtc-26jan1617-t78000_no")
+                        ticker = info[startIndex + 3];
+                        date = Parse.DateTimeExact(info[startIndex + 4].Substring(0, 8), DateFormat.EightCharacter);
+                    }
+                    else
+                    {
+                        // Hourly/daily: filename is "ticker[_no]_ticktype.zip", rejoin all but last component
+                        var components = info[startIndex + 3].Split('_');
+                        ticker = string.Join("_", components.Take(components.Length - 1));
+                    }
+                }
                 else
                 {
                     // Gather components used to create the security
@@ -1326,6 +1350,14 @@ namespace QuantConnect.Util
                     // Future options have underlying future contract month date as the parent dir for the zips, we need this for our underlying
                     var futureContractMonth = Parse.DateTimeExact(info[startIndex + 4].Substring(0, 6), DateFormat.YearMonth);
                     symbol = CreateSymbol(ticker, securityType, market, null, futureContractMonth);
+                }
+                else if (securityType == SecurityType.PredictionMarket)
+                {
+                    // Detect NO token from _no suffix in path component
+                    var isNo = ticker.EndsWith("_no");
+                    var baseTicker = isNo ? ticker.Substring(0, ticker.Length - 3) : ticker;
+                    var tokenType = isNo ? PredictionMarketTokenType.No : PredictionMarketTokenType.Yes;
+                    symbol = Symbol.CreatePredictionMarketToken(baseTicker.ToUpperInvariant(), market, tokenType);
                 }
                 else
                 {

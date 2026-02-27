@@ -307,6 +307,41 @@ namespace QuantConnect
 
 
         /// <summary>
+        /// Creates a Symbol for a prediction market token (YES or NO).
+        /// </summary>
+        /// <param name="ticker">The prediction market contract ticker</param>
+        /// <param name="market">The market (e.g., "kalshi")</param>
+        /// <param name="tokenType">The token type (Yes or No)</param>
+        /// <returns>A new Symbol for the specified prediction market token</returns>
+        public static Symbol CreatePredictionMarketToken(string ticker, string market, PredictionMarketTokenType tokenType)
+        {
+            var sid = SecurityIdentifier.GeneratePredictionMarketToken(ticker, market, tokenType);
+            var value = tokenType == PredictionMarketTokenType.No ? ticker + " NO" : ticker;
+            return new Symbol(sid, value);
+        }
+
+        /// <summary>
+        /// Gets the base ticker for a prediction market token (strips token type encoding).
+        /// For non-prediction-market symbols, returns Value.
+        /// </summary>
+        public string BaseTicker =>
+            SecurityType == SecurityType.PredictionMarket ? ID.Symbol : Value;
+
+        /// <summary>
+        /// Whether this is a prediction market NO token.
+        /// </summary>
+        public bool IsNoToken =>
+            SecurityType == SecurityType.PredictionMarket
+            && ID.TokenType == PredictionMarketTokenType.No;
+
+        /// <summary>
+        /// Whether this is a prediction market YES token.
+        /// </summary>
+        public bool IsYesToken =>
+            SecurityType == SecurityType.PredictionMarket
+            && ID.TokenType == PredictionMarketTokenType.Yes;
+
+        /// <summary>
         /// Provides a convenience method for creating a future Symbol.
         /// </summary>
         /// <param name="ticker">The ticker</param>

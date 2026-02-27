@@ -69,4 +69,28 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Polygon/QuantConnect.Polygon/QuantConnect.DataSource.Polygon.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../ThetaData/QuantConnect.ThetaData/QuantConnect.DataSource.ThetaData.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../TradeAlert/QuantConnect.DataSource.TradeAlert/QuantConnect.DataSource.TradeAlert.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Fidelity/QuantConnect.Brokerages.Fidelity/QuantConnect.Brokerages.Fidelity.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Hyperliquid/QuantConnect.HyperliquidData/HyperliquidData.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Hyperliquid/QuantConnect.Brokerages.Hyperliquid/QuantConnect.Brokerages.Hyperliquid.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Kalshi/QuantConnect.KalshiData/KalshiData.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Kalshi/QuantConnect.Brokerages.Kalshi/QuantConnect.Brokerages.Kalshi.csproj" />
+  </ItemGroup>
 </Project>

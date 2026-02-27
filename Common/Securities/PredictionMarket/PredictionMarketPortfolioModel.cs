@@ -39,28 +39,14 @@ namespace QuantConnect.Securities.PredictionMarket
         public override void ProcessFill(SecurityPortfolioManager portfolio, Security security, OrderEvent fill)
         {
             // Check if this is a settlement fill (delisting liquidation)
+            // Mutate FillPrice in-place so the same fill object flows to both
+            // portfolio accounting AND TradeBuilder.ProcessFill() with the settlement price
             if (IsSettlementFill(fill))
             {
                 var predictionMarket = security as PredictionMarket;
                 if (predictionMarket != null)
                 {
-                    var settlementPrice = GetSettlementPrice(predictionMarket);
-
-                    // Create a modified fill with the settlement price
-                    // The fill price determines the P&L calculation in base.ProcessFill()
-                    fill = new OrderEvent(
-                        fill.OrderId,
-                        fill.Symbol,
-                        fill.UtcTime,
-                        fill.Status,
-                        fill.Direction,
-                        settlementPrice,
-                        fill.FillQuantity,
-                        fill.OrderFee,
-                        fill.Message)
-                    {
-                        Ticket = fill.Ticket
-                    };
+                    fill.FillPrice = GetSettlementPrice(predictionMarket);
                 }
             }
 
@@ -79,19 +65,23 @@ namespace QuantConnect.Securities.PredictionMarket
         }
 
         /// <summary>
-        /// Gets the binary settlement price based on the market's settlement result
+        /// Gets the binary settlement price based on the market's settlement result and token type.
+        /// YES tokens pay $1 when result is Yes, NO tokens pay $1 when result is No.
         /// </summary>
         /// <param name="predictionMarket">The prediction market security</param>
-        /// <returns>$1.00 for Yes, $0.00 for No, or last market price if Pending</returns>
+        /// <returns>Settlement price ($0 or $1), or last market price if Pending</returns>
         private static decimal GetSettlementPrice(PredictionMarket predictionMarket)
         {
-            switch (predictionMarket.SettlementResult)
+            var result = predictionMarket.SettlementResult;
+            var isNoToken = predictionMarket.Symbol.ID.TokenType == PredictionMarketTokenType.No;
+
+            switch (result)
             {
                 case PredictionMarketSettlementResult.Yes:
-                    return 1.0m;
+                    return isNoToken ? 0.0m : 1.0m;
 
                 case PredictionMarketSettlementResult.No:
-                    return 0.0m;
+                    return isNoToken ? 1.0m : 0.0m;
 
                 case PredictionMarketSettlementResult.Pending:
                 default:

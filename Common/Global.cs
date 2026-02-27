@@ -635,6 +635,22 @@ namespace QuantConnect
     }
 
     /// <summary>
+    /// Specifies the token type for prediction market contracts
+    /// </summary>
+    public enum PredictionMarketTokenType
+    {
+        /// <summary>
+        /// YES token — pays $1 if event resolves Yes (0)
+        /// </summary>
+        Yes = 0,
+
+        /// <summary>
+        /// NO token — pays $1 if event resolves No (1)
+        /// </summary>
+        No = 1
+    }
+
+    /// <summary>
     /// Specifies the different types of options
     /// </summary>
     public enum OptionRight

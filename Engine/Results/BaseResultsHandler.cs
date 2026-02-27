@@ -864,6 +864,38 @@ namespace QuantConnect.Lean.Engine.Results
             // Sample our long and short positions
             SampleExposureHelper(PositionSide.Long, time, currentPortfolioValue, longHoldings);
             SampleExposureHelper(PositionSide.Short, time, currentPortfolioValue, shortHoldings);
+
+            // Sub-aggregate prediction market by YES/NO token type
+            var pmYesLong = 0m; var pmYesShort = 0m;
+            var pmNoLong = 0m; var pmNoShort = 0m;
+            foreach (var holding in Algorithm.Portfolio.Values)
+            {
+                if (holding.Symbol.SecurityType != QuantConnect.SecurityType.PredictionMarket || holding.HoldingsValue == 0)
+                    continue;
+
+                if (holding.HoldingsValue > 0)
+                {
+                    if (holding.Symbol.IsNoToken) pmNoLong += holding.HoldingsValue;
+                    else pmYesLong += holding.HoldingsValue;
+                }
+                else
+                {
+                    if (holding.Symbol.IsNoToken) pmNoShort += holding.HoldingsValue;
+                    else pmYesShort += holding.HoldingsValue;
+                }
+            }
+
+            if (pmYesLong != 0 || pmYesShort != 0 || pmNoLong != 0 || pmNoShort != 0)
+            {
+                Sample("Exposure", "PredictionMarket YES - Long Ratio", 0, SeriesType.Line,
+                    new ChartPoint(time, Math.Round(pmYesLong / currentPortfolioValue, 4)), "");
+                Sample("Exposure", "PredictionMarket YES - Short Ratio", 0, SeriesType.Line,
+                    new ChartPoint(time, Math.Round(pmYesShort / currentPortfolioValue, 4)), "");
+                Sample("Exposure", "PredictionMarket NO - Long Ratio", 0, SeriesType.Line,
+                    new ChartPoint(time, Math.Round(pmNoLong / currentPortfolioValue, 4)), "");
+                Sample("Exposure", "PredictionMarket NO - Short Ratio", 0, SeriesType.Line,
+                    new ChartPoint(time, Math.Round(pmNoShort / currentPortfolioValue, 4)), "");
+            }
         }
 
         /// <summary>
