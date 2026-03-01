@@ -175,7 +175,9 @@ namespace QuantConnect.Lean.Engine.DataFeeds.DataDownloader
                 minLookBack = expiryDate.AddYears(-_futureLookbackYeard);
             }
 
-            if (minLookBack > originalEndDateUtc || expiryDate < originalStartDateUtc)
+            // expiryDate is naive midnight; originalStartDateUtc is timezone-offset (e.g. 04:00 UTC for ET).
+            // AddDays(1) ensures same-day (0DTE) contracts are not incorrectly excluded.
+            if (minLookBack > originalEndDateUtc || expiryDate.AddDays(1) <= originalStartDateUtc)
             {
                 adjustedStartDateUtc = default;
                 adjustedEndDateUtc = default;
