@@ -423,7 +423,7 @@ namespace QuantConnect
 
         /// <summary>
         /// Prediction Market Security Type (12)
-        /// Binary outcome contracts traded on prediction market exchanges like Kalshi
+        /// Binary outcome contracts traded on prediction market exchanges such as Kalshi and Polymarket
         /// </summary>
         PredictionMarket,
     }

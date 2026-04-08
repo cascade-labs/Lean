@@ -11,7 +11,7 @@ using QuantConnect.Orders.Slippage;
 namespace QuantConnect.Securities.PredictionMarket
 {
     /// <summary>
-    /// Prediction Market Security Object Implementation for prediction market contracts (e.g., Kalshi)
+    /// Prediction Market Security Object Implementation for prediction market contracts.
     /// </summary>
     /// <remarks>
     /// Prediction market contracts are binary outcome contracts priced between 0 and 1 (or 0-100 cents).

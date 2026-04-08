@@ -637,7 +637,7 @@ namespace QuantConnect
         /// Generates a new <see cref="SecurityIdentifier"/> for a prediction market contract
         /// </summary>
         /// <param name="symbol">The prediction market contract ticker (e.g., KXHIGHNY-26JAN16-T40)</param>
-        /// <param name="market">The security's market (e.g., kalshi)</param>
+        /// <param name="market">The security's explicit market (for example kalshi or polymarket)</param>
         /// <returns>A new <see cref="SecurityIdentifier"/> representing the specified prediction market contract</returns>
         public static SecurityIdentifier GeneratePredictionMarket(string symbol, string market)
         {
@@ -648,7 +648,7 @@ namespace QuantConnect
         /// Generates a new <see cref="SecurityIdentifier"/> for a prediction market token (YES or NO)
         /// </summary>
         /// <param name="symbol">The prediction market contract ticker</param>
-        /// <param name="market">The security's market (e.g., kalshi)</param>
+        /// <param name="market">The security's explicit market (for example kalshi or polymarket)</param>
         /// <param name="tokenType">The token type (Yes or No)</param>
         /// <returns>A new <see cref="SecurityIdentifier"/> representing the specified prediction market token</returns>
         public static SecurityIdentifier GeneratePredictionMarketToken(string symbol, string market, PredictionMarketTokenType tokenType)

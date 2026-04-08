@@ -73,7 +73,8 @@ namespace QuantConnect
             Tuple.Create(OSE, 41),
             Tuple.Create(DYDX, 42),
             Tuple.Create(Hyperliquid, 43),
-            Tuple.Create(Kalshi, 44)
+            Tuple.Create(Kalshi, 44),
+            Tuple.Create(Polymarket, 45)
         };
 
         static Market()
@@ -278,6 +279,11 @@ namespace QuantConnect
         /// Kalshi prediction market exchange
         /// </summary>
         public const string Kalshi = "kalshi";
+
+        /// <summary>
+        /// Polymarket prediction market exchange
+        /// </summary>
+        public const string Polymarket = "polymarket";
 
         /// <summary>
         /// Adds the specified market to the map of available markets with the specified identifier.

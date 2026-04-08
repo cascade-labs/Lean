@@ -54,8 +54,7 @@ namespace QuantConnect.Brokerages
             {SecurityType.Crypto, Market.Coinbase},
             {SecurityType.CryptoFuture, Market.Binance},
             {SecurityType.Index, Market.USA},
-            {SecurityType.IndexOption, Market.USA},
-            {SecurityType.PredictionMarket, Market.Kalshi}
+            {SecurityType.IndexOption, Market.USA}
         }.ToReadOnlyDictionary();
 
         /// <summary>

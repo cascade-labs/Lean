@@ -48,6 +48,7 @@
 *Engine/bin/Debug/cache/data/*.zip
 */obj/*
 */bin/*
+.stubs/
 *Data/*
 *Docker/*
 */Docker/*

@@ -1944,6 +1944,13 @@ namespace QuantConnect.Algorithm
         public Security AddSecurity(SecurityType securityType, string ticker, Resolution? resolution, string market, bool? fillForward, decimal leverage, bool? extendedMarketHours,
             DataMappingMode? dataMappingMode = null, DataNormalizationMode? dataNormalizationMode = null)
         {
+            if (securityType == SecurityType.PredictionMarket && string.IsNullOrWhiteSpace(market))
+            {
+                throw new InvalidOperationException(
+                    $"PredictionMarket securities require an explicit market for ticker '{ticker}'. " +
+                    $"Pass either Market.Kalshi or Market.Polymarket.");
+            }
+
             // if AddSecurity method is called to add an option or a future, we delegate a call to respective methods
             if (securityType == SecurityType.Option)
             {
@@ -3634,6 +3641,13 @@ namespace QuantConnect.Algorithm
         {
             if (string.IsNullOrEmpty(market))
             {
+                if (securityType == SecurityType.PredictionMarket)
+                {
+                    throw new InvalidOperationException(
+                        $"PredictionMarket securities require an explicit market for ticker '{ticker}'. " +
+                        $"Pass either Market.Kalshi or Market.Polymarket.");
+                }
+
                 if (securityType == SecurityType.Index && IndexSymbol.TryGetIndexMarket(ticker, out market))
                 {
                     return market;

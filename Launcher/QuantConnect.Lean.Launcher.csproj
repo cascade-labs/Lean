@@ -68,6 +68,9 @@
     <None Include="config.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="lean_entrypoint.py">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../Polygon/QuantConnect.Polygon/QuantConnect.DataSource.Polygon.csproj" />
@@ -92,5 +95,17 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../Kalshi/QuantConnect.Brokerages.Kalshi/QuantConnect.Brokerages.Kalshi.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Polymarket/QuantConnect.PolymarketData/QuantConnect.PolymarketData.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Polymarket/QuantConnect.Brokerages.Polymarket/QuantConnect.Brokerages.Polymarket.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../CascadeStorage/QuantConnect.CascadeStorage/QuantConnect.CascadeStorage.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Robinhood/QuantConnect.Brokerages.Robinhood/QuantConnect.Brokerages.Robinhood.csproj" />
   </ItemGroup>
 </Project>

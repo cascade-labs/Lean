@@ -310,7 +310,7 @@ namespace QuantConnect
         /// Creates a Symbol for a prediction market token (YES or NO).
         /// </summary>
         /// <param name="ticker">The prediction market contract ticker</param>
-        /// <param name="market">The market (e.g., "kalshi")</param>
+        /// <param name="market">The explicit market (for example "kalshi" or "polymarket")</param>
         /// <param name="tokenType">The token type (Yes or No)</param>
         /// <returns>A new Symbol for the specified prediction market token</returns>
         public static Symbol CreatePredictionMarketToken(string ticker, string market, PredictionMarketTokenType tokenType)

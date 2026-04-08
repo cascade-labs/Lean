@@ -428,6 +428,8 @@
     <ProjectReference Include="..\Queues\QuantConnect.Queues.csproj" />
     <ProjectReference Include="..\Report\QuantConnect.Report.csproj" />
     <ProjectReference Include="..\ToolBox\QuantConnect.ToolBox.csproj" />
+    <ProjectReference Include="..\..\Polymarket\QuantConnect.PolymarketData\QuantConnect.PolymarketData.csproj" />
+    <ProjectReference Include="..\..\Polymarket\QuantConnect.Brokerages.Polymarket\QuantConnect.Brokerages.Polymarket.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="TestData\spx_lwma.csv">

@@ -235,6 +235,13 @@ namespace QuantConnect.Orders
 
                 if (market == null && !SymbolPropertiesDatabase.FromDataFolder().TryGetMarket(ticker, securityType, out market))
                 {
+                    if (securityType == SecurityType.PredictionMarket)
+                    {
+                        throw new JsonSerializationException(
+                            $"PredictionMarket order '{ticker}' is missing an explicit market. " +
+                            $"Specify either '{Market.Kalshi}' or '{Market.Polymarket}'.");
+                    }
+
                     market = DefaultBrokerageModel.DefaultMarketMap[securityType];
                 }
                 order.Symbol = Symbol.Create(ticker, securityType, market);

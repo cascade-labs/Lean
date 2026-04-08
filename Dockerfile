@@ -21,7 +21,12 @@ COPY ./Lean/Optimizer.Launcher/bin/Debug/ /Lean/Optimizer.Launcher/bin/Debug/
 COPY ./Lean/Report/bin/Debug/ /Lean/Report/bin/Debug/
 COPY ./Lean/DownloaderDataProvider/bin/Debug/ /Lean/DownloaderDataProvider/bin/Debug/
 
+RUN if [ -f /Lean/Launcher/bin/Debug/fidelity_sidecar.py ] && [ -f /Lean/Launcher/bin/Debug/requirements.txt ]; then \
+        pip install --no-cache-dir -r /Lean/Launcher/bin/Debug/requirements.txt && \
+        python -m playwright install firefox; \
+    fi
+
 # Can override with '-w'
 WORKDIR /Lean/Launcher/bin/Debug
 
-ENTRYPOINT [ "dotnet", "QuantConnect.Lean.Launcher.dll" ]
+ENTRYPOINT [ "python", "/Lean/Launcher/bin/Debug/lean_entrypoint.py", "dotnet", "QuantConnect.Lean.Launcher.dll" ]

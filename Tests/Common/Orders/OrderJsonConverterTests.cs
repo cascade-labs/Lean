@@ -18,9 +18,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using QuantConnect.Orders;
 using QuantConnect.Orders.TimeInForces;
+using QuantConnect.Securities;
 
 namespace QuantConnect.Tests.Common.Orders
 {
@@ -807,6 +809,26 @@ namespace QuantConnect.Tests.Common.Orders
             Assert.AreEqual(expected.LimitPrice, actual.LimitPrice);
             Assert.AreEqual(expected.Direction, actual.Direction);
             CollectionAssert.AreEqual(expected.OrderIds, actual.OrderIds);
+        }
+
+        [Test]
+        public void PredictionMarketOrderWithoutExplicitMarketThrows()
+        {
+            var orderJson = new JObject
+            {
+                ["Type"] = (int)OrderType.Market,
+                ["Id"] = 1,
+                ["Status"] = (int)OrderStatus.None,
+                ["Time"] = new DateTime(2026, 3, 14, 0, 0, 0, DateTimeKind.Utc),
+                ["Quantity"] = 1,
+                ["Price"] = 0.5m,
+                ["SecurityType"] = (int)SecurityType.PredictionMarket,
+                ["Symbol"] = "test-market",
+                ["BrokerId"] = new JArray()
+            };
+
+            var exception = Assert.Throws<JsonSerializationException>(() => OrderJsonConverter.CreateOrderFromJObject(orderJson));
+            StringAssert.Contains("PredictionMarket order 'test-market' is missing an explicit market", exception!.Message);
         }
 
         private static Order DeserializeOrder<T>(string json) where T : Order

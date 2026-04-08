@@ -120,6 +120,33 @@ namespace QuantConnect.Tests.Algorithm
             }
         }
 
+        [Test]
+        public void AddPredictionMarketRequiresExplicitMarket()
+        {
+            var exception = Assert.Throws<InvalidOperationException>(() =>
+                _algo.AddSecurity(SecurityType.PredictionMarket, "TEST-MARKET", Resolution.Minute));
+
+            StringAssert.Contains("PredictionMarket securities require an explicit market", exception!.Message);
+        }
+
+        [TestCase(Market.Kalshi)]
+        [TestCase(Market.Polymarket)]
+        public void AddPredictionMarketWithExplicitMarket(string market)
+        {
+            var security = _algo.AddSecurity(
+                SecurityType.PredictionMarket,
+                "TEST-MARKET",
+                Resolution.Minute,
+                market,
+                fillForward: true,
+                leverage: Security.NullLeverage,
+                extendedMarketHours: false);
+
+            Assert.IsNotNull(security);
+            Assert.AreEqual(SecurityType.PredictionMarket, security.Type);
+            Assert.AreEqual(market, security.Symbol.ID.Market);
+        }
+
         [TestCaseSource(nameof(GetDataNormalizationModes))]
         public void AddsEquityWithExpectedDataNormalizationMode(DataNormalizationMode dataNormalizationMode)
         {

@@ -34,6 +34,7 @@ namespace QuantConnect.Brokerages
 
         private string _url;
         private string _sessionToken;
+        private string _sessionTokenHeaderName;
         private CancellationTokenSource _cts;
         private ClientWebSocket _client;
         private Task _taskConnect;
@@ -45,10 +46,12 @@ namespace QuantConnect.Brokerages
         /// </summary>
         /// <param name="url">The target websocket url</param>
         /// <param name="sessionToken">The websocket session token</param>
-        public void Initialize(string url, string sessionToken = null)
+        /// <param name="sessionTokenHeaderName">The request header name used for the session token</param>
+        public void Initialize(string url, string sessionToken = null, string sessionTokenHeaderName = "x-session-token")
         {
             _url = url;
             _sessionToken = sessionToken;
+            _sessionTokenHeaderName = sessionTokenHeaderName;
         }
 
         /// <summary>
@@ -232,7 +235,7 @@ namespace QuantConnect.Brokerages
                             _client = new ClientWebSocket();
                             if (_sessionToken != null)
                             {
-                                _client.Options.SetRequestHeader("x-session-token", _sessionToken);
+                                _client.Options.SetRequestHeader(_sessionTokenHeaderName, _sessionToken);
                             }
                             _client.ConnectAsync(new Uri(_url), connectionCts.Token).SynchronouslyAwaitTask();
                         }
